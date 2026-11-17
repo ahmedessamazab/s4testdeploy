@@ -1,4 +1,6 @@
-streamlit
-pandas
-transformers
-torch
+streamlit>=1.35.0
+pandas>=2.0.0
+transformers>=4.40.0
+torch>=2.2.0
+accelerate>=0.29.0
+safetensors

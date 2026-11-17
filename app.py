@@ -1,35 +1,23 @@
 import pandas as pd
 import streamlit as st
-import torch
 from transformers import pipeline
 
-pipe = pipeline("text-classification", model="SamLowe/roberta-base-go_emotions")
+st.set_page_config(page_title="Ahmed Azab Portfolio")
 
-# pip install -U transformers accelerate
-# Load model directly
-from transformers import AutoModelForSequenceClassification, AutoTokenizer
-
-tokenizer = AutoTokenizer.from_pretrained("SamLowe/roberta-base-go_emotions")
-model = AutoModelForSequenceClassification.from_pretrained(
-    "SamLowe/roberta-base-go_emotions", device_map="auto"
-)
-
-
-st.title("Ahmed Azab portfolio")
+st.title("Ahmed Azab Portfolio")
 
 st.image("./images/images.jpg", alt="Sunrise over a mountain ridge", width=300)
 
 st.write(
-    "Welcome to my portfolio! Here you can find information about my projects, skills, and experience. Feel free to explore and reach out if you have any questions or opportunities for collaboration."
+    "Welcome to my portfolio! Here you can find information "
+    "about my projects, skills, and experience."
 )
 
 name = st.text_input("Enter your name:")
 age = st.slider("Select your age:", 0, 100, 25)
 
-
 if st.button("Submit"):
     st.write(f"Hello {name}, you are {age} years old!")
-
 
 df = pd.DataFrame(
     {
@@ -40,7 +28,7 @@ df = pd.DataFrame(
             "Description of Project C",
         ],
         "Link": [
-            "  https://example.com/project-a",
+            "https://example.com/project-a",
             "https://example.com/project-b",
             "https://example.com/project-c",
         ],
@@ -50,37 +38,32 @@ df = pd.DataFrame(
 st.dataframe(df)
 
 
-sentences = ["I am not having a great day"]
+# Load emotion classification model
+@st.cache_resource
+def load_model():
+    return pipeline(
+        "text-classification",
+        model="SamLowe/roberta-base-go_emotions",
+        top_k=None,
+        device=-1,
+    )
 
-# Tokenize the input sentences
-inputs = tokenizer(sentences, return_tensors="pt", padding=True, truncation=True)
 
-# Move inputs to the same device as the model
-inputs = {k: v.to(model.device) for k, v in inputs.items()}
+pipe = load_model()
 
-# Get predictions from the model
-with torch.no_grad():
-    outputs = model(**inputs)
+st.header("Emotion Detection")
 
-# Extract and print raw logits
-print("Logits:", outputs.logits)
+sentence = st.text_area("Enter a sentence:", "I am not having a great day")
 
-# Apply softmax to get probabilities
-probabilities = torch.nn.functional.softmax(outputs.logits, dim=-1)
-print("Probabilities:", probabilities)
+if st.button("Analyze Emotion"):
+    if sentence.strip():
+        results = pipe(sentence)[0]
 
-# Get the class name labels from the model configuration
-labels = model.config.id2label
+        results = sorted(results, key=lambda x: x["score"], reverse=True)
 
-# Convert probabilities tensor to a list
-probs_list = probabilities[0].tolist()
+        st.subheader("Predicted Emotions")
 
-# Combine class names with their predicted probabilities and sort them
-predictions = {labels[i]: probs_list[i] for i in range(len(probs_list))}
-sorted_predictions = sorted(predictions.items(), key=lambda item: item[1], reverse=True)
-
-# Print the results
-print("Predicted Emotions and Probabilities:")
-for emotion, prob in sorted_predictions:
-    if prob > 0.1:  # Only display emotions with > 10% probability
-        print(f"{emotion}: {prob:.4f}")
+        for result in results:
+            if result["score"] > 0.1:
+                st.write(f"**{result['label']}**: {result['score']:.2%}")
+                st.progress(float(result["score"]))
